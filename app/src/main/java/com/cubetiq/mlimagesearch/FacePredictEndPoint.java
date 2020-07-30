@@ -17,6 +17,6 @@ public interface FacePredictEndPoint {
   @Multipart
   @POST("api/v1/img_classify/")
   Call<FacePredictResponse> imgClassify(
-          @Part MultipartBody.Part file,
-          @Part("farm_id") RequestBody farmId);
+      @Part MultipartBody.Part file,
+      @Part("farm_id") RequestBody farmId);
 }

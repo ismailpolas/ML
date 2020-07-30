@@ -6,6 +6,7 @@ import com.google.gson.GsonBuilder;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -16,13 +17,21 @@ public class FacePredictClient {
   private Retrofit retrofit;
 
   private FacePredictClient() {
+    HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+    interceptor.level(HttpLoggingInterceptor.Level.BODY);
 
-    Gson gson = new GsonBuilder()
-        //.setLenient()
-        .create();
+    OkHttpClient okHttpClient = new OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(50, TimeUnit.SECONDS)
+        .readTimeout(50, TimeUnit.SECONDS)
+        .addInterceptor(interceptor)
+        .build();
+
+    Gson gson = new GsonBuilder().create();
 
     retrofit = new Retrofit.Builder()
         .baseUrl(FACE_PREDICT_BASE_URL)
+        .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create(gson))
         .build();
   }
