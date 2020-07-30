@@ -11,4 +11,12 @@ public class DetectionClass {
   @SerializedName("score")
   @Expose
   public Float score;
+
+  @Override
+  public String toString() {
+    return "DetectionClass{" +
+        "cowId='" + cowId + '\'' +
+        ", score=" + score +
+        '}';
+  }
 }

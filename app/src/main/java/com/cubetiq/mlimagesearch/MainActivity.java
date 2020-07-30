@@ -10,25 +10,42 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.webkit.MimeTypeMap;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
+  private static final String TAG = "MainActivity";
+
   Button submit, ChooseButton;
-  public static TextView data;
+  TextView data;
   ImageView SelectImage;
+  EditText farmId;
+
 
   Uri FilePathUri;
+  File imageFile;
 
   // Image request code for onActivityResult() .
   int Image_Request_Code = 7;
@@ -45,13 +62,13 @@ public class MainActivity extends AppCompatActivity {
 
     ChooseButton = (Button) findViewById(R.id.ButtonChooseImage);
     SelectImage = (ImageView) findViewById(R.id.ShowImageView);
+    farmId = findViewById(R.id.farmIdEditText);
 
     progressDialog = new ProgressDialog(MainActivity.this);
 
     ChooseButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-
         // Creating intent.
         Intent intent = new Intent();
 
@@ -66,8 +83,46 @@ public class MainActivity extends AppCompatActivity {
     submit.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View view) {
-        FetchData process = new FetchData();
-        process.execute();
+        if (imageFile == null) {
+          Toast.makeText(MainActivity.this, "Please choose an image to upload",
+              Toast.LENGTH_SHORT).show();
+          return;
+        }
+
+        if (farmId.getText().toString().isEmpty()) {
+          Toast.makeText(MainActivity.this, "Please enter a farm id",
+              Toast.LENGTH_SHORT).show();
+          return;
+        }
+
+        MultipartBody.Part part = null;
+        try {
+          RequestBody fileBody = RequestBody.create(imageFile, MediaType.parse("image/*"));
+          part = MultipartBody.Part.createFormData("image", imageFile.getName(), fileBody);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+
+        FacePredictClient.getInstance().getApi().imgClassify(
+            part,
+            RequestBody.create(farmId.getText().toString(), MediaType.parse("text/plain")))
+            .enqueue(new Callback<FacePredictResponse>() {
+              @Override
+              public void onResponse(Call<FacePredictResponse> call, Response<FacePredictResponse> response) {
+                Log.d(TAG, "onResponse: response.body() = " + response.body());
+                if (response.isSuccessful()) {
+                  data.setText(response.body().toString());
+                } else {
+                  data.setText("Something went wrong!");
+                }
+              }
+
+              @Override
+              public void onFailure(Call<FacePredictResponse> call, Throwable t) {
+                Log.e(TAG, "onFailure: t.getMessage() = " + t.getMessage(), t);
+                data.setText("Unable to get data from server!");
+              }
+            });
       }
     });
   }
@@ -78,18 +133,42 @@ public class MainActivity extends AppCompatActivity {
     super.onActivityResult(requestCode, resultCode, data);
     if (requestCode == Image_Request_Code && resultCode == RESULT_OK && data != null && data.getData() != null) {
       FilePathUri = data.getData();
-      File f = new File(FilePathUri.getPath());
+      Log.d(TAG, "onActivityResult: FilePathUri = " + FilePathUri);
+
+      try {
+        /*InputStream in = getContentResolver().openInputStream(FilePathUri);
+        OutputStream out = new FileOutputStream(imageFile);
+        byte[] buf = new byte[1024];
+        int len;
+        while ((len = in.read(buf)) > 0) {
+          out.write(buf, 0, len);
+        }
+        out.close();
+        in.close();*/
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+
       try {
         // Getting selected image into Bitmap.
         Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), FilePathUri);
         // Setting up bitmap selected image into ImageView.
         SelectImage.setImageBitmap(bitmap);
-        String path_external = Environment.getExternalStorageDirectory() + File.separator + "temporary_file.jpg";
-        File file = new File(path_external);
-        OutputStream os = new BufferedOutputStream(new FileOutputStream(file));
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, os);
-        os.close();
-        // After selecting image change choose button above text.
+
+        File filesDir = getFilesDir();
+        imageFile = new File(filesDir, "image_to_upload.jpg");
+
+        OutputStream os;
+        try {
+          os = new FileOutputStream(imageFile);
+          bitmap.compress(Bitmap.CompressFormat.JPEG, 100, os);
+          os.flush();
+          os.close();
+        } catch (Exception e) {
+          Log.e(getClass().getSimpleName(), "Error writing bitmap", e);
+        }
+
+        Log.d(TAG, "onActivityResult: imageFile = " + imageFile.toString());
         ChooseButton.setText("Image Selected");
       } catch (IOException e) {
         e.printStackTrace();

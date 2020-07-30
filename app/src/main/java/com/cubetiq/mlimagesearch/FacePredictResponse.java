@@ -11,4 +11,12 @@ public class FacePredictResponse {
   @SerializedName("predictions")
   @Expose
   public Predictions predictions;
+
+  @Override
+  public String toString() {
+    return "FacePredictResponse{" +
+        "message='" + message + '\'' +
+        ", predictions=" + predictions +
+        '}';
+  }
 }

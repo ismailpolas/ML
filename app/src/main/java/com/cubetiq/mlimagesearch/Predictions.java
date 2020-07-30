@@ -11,4 +11,10 @@ public class Predictions {
   @Expose
   public List<DetectionClass> detectionClasses = null;
 
+  @Override
+  public String toString() {
+    return "Predictions{" +
+        "detectionClasses=" + detectionClasses +
+        '}';
+  }
 }
