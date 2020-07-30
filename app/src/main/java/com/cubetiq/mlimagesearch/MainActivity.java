@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     farmId = findViewById(R.id.farmIdEditText);
 
     progressDialog = new ProgressDialog(MainActivity.this);
+    progressDialog.setMessage("Please wait...");
 
     ChooseButton.setOnClickListener(new View.OnClickListener() {
       @Override
@@ -95,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
           return;
         }
 
+        progressDialog.show();
+
         MultipartBody.Part part = null;
         try {
           RequestBody fileBody = RequestBody.create(imageFile, MediaType.parse("image/*"));
@@ -109,9 +112,18 @@ public class MainActivity extends AppCompatActivity {
             .enqueue(new Callback<FacePredictResponse>() {
               @Override
               public void onResponse(Call<FacePredictResponse> call, Response<FacePredictResponse> response) {
+                progressDialog.dismiss();
                 Log.d(TAG, "onResponse: response.body() = " + response.body());
                 if (response.isSuccessful()) {
+                  StringBuilder result = new StringBuilder();
                   data.setText(response.body().toString());
+                  if (response.body().predictions != null) {
+                    result.append("Cow Id: " + response.body().predictions.detectionClasses.get(0).cowId +
+                        "\nScore: " + response.body().predictions.detectionClasses.get(0).score);
+                    data.setText(result);
+                  } else {
+                    data.setText(response.body().message);
+                  }
                 } else {
                   data.setText("Something went wrong!");
                 }
@@ -119,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
 
               @Override
               public void onFailure(Call<FacePredictResponse> call, Throwable t) {
+                progressDialog.dismiss();
                 Log.e(TAG, "onFailure: t.getMessage() = " + t.getMessage(), t);
                 data.setText("Unable to get data from server!");
               }
